@@ -1,0 +1,6 @@
+pillow
+pyyaml
+pyenchant
+matplotlib
+discord
+pandas
