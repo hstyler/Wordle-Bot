@@ -3,6 +3,7 @@ import word_lists.word_list_generator
 import random
 import renderer
 import enchant
+import string
 from datetime import datetime
 
 client = discord.Client()
@@ -10,6 +11,12 @@ d = enchant.Dict("en_US")
 
 date_format = "%d/%m/%y"
 last_played_path = "last_played.txt"
+
+client.last_message_id = None
+
+async def send_message(trigger_message, text):
+    message = await trigger_message.channel.send(text)
+    client.last_message_id = message.id
 
 def get_last_played():
     with open(last_played_path, 'r') as file:
@@ -43,13 +50,19 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+    def wait_for_reply(message):
+        if message.reference is not None:
+            if message.reference.message_id == client.last_message_id:
+                return True
+        return False
+
     if message.author == client.user:
         return
 
     if message.content.startswith('!wordle'):
         args = message.content.split(' ')
         if len(args) != 2:
-            await message.channel.send("**Usage: !wordle [length of word to guess]**")
+            await send_message(message, "**Usage: !wordle [length of word to guess]**")
         else:
             if args[1].isdigit(): 
                 length = int(args[1])
@@ -59,11 +72,22 @@ async def on_message(message):
                         await play_wordle(message, length)
                         set_last_played()
                     else:
-                        await message.channel.send("**I hope you weren't trying to play Wordle more than once per day... ;)**")
+                        await send_message(message, "**I hope you weren't trying to play Wordle more than once per day... ;)**")
                 else:
-                    await message.channel.send("**Word length should be between 3 and 10**")
+                    await send_message(message, "**Word length should be between 3 and 10**")
             else:
-                await message.channel.send("**Word length should be between 3 and 10**")
+                if args[1] == "reset":
+                    await send_message(message, "**Reset password sent to console**")
+                    password = ''.join(random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for i in range(10))
+                    print(password)
+                    msg = await client.wait_for('message', check=wait_for_reply, timeout=20)
+
+                    if msg.content == password:
+                        with open(last_played_path, 'w') as f:
+                            f.write("01/01/01")
+                        await send_message(message, "**Wordle reset**")
+            else:
+                    await send_message(message, "**Word length should be between 3 and 10**")
             
 def validate_word(guess, word):
     result_string = ""
@@ -88,7 +112,7 @@ async def play_wordle(message, word_length):
         print("Your word is.... {}".format(word))
         guessed_letters = set()
 
-        await message.channel.send("**Generated word, game starting - Use !g to guess, !giveup to quit**")
+        await send_message(message, "**Generated word, game starting - Use !g to guess, !giveup to quit**")
 
         guesses_remaining = word_length + 1
 
@@ -102,7 +126,7 @@ async def play_wordle(message, word_length):
                     msg_args = msg.content.split(' ')
 
                     if msg_args[0] == '!giveup':
-                        await message.channel.send("The word was...  {}".format(word))
+                        await send_message(message, "The word was...  {}".format(word))
                         return
 
                     if msg_args[0] == '!g':
@@ -110,17 +134,17 @@ async def play_wordle(message, word_length):
                             guess = msg_args[1]
                             
                             if len(guess) != word_length:
-                                await message.channel.send("*Invalid length guess*")
+                                await send_message(message, "*Invalid length guess*")
                             else:
                                 in_dictionary = d.check(guess)
                                 guess = guess.upper()
 
                                 if not in_dictionary:
-                                    await message.channel.send("*Word not in the dictionary*")
+                                    await send_message(message, "*Word not in the dictionary*")
                         else:
-                            await message.channel.send("*You need to guess a word*")
+                            await send_message(message, "*You need to guess a word*")
                 except:
-                    await message.channel.send("No guesses, stopping game...  :(")
+                    await send_message(message, "No guesses, stopping game...  :(")
                     return
 
             guesses_remaining -= 1
@@ -138,10 +162,10 @@ async def play_wordle(message, word_length):
                 await message.channel.send("**You guessed correctly!**".format(guesses_remaining), file=discord.File('guess_result.png'))
                 return
 
-        await message.channel.send("**You're out of guesses, game over! The word was...  {}**".format(word))
+        await send_message(message, "**You're out of guesses, game over! The word was...  {}**".format(word))
 
     except ValueError as e:
-        await message.channel.send('*{}*'.format(e.args[0]))
+        await send_message(message, '*{}*'.format(e.args[0]))
         return
 
 client.run('[TOKEN]')
