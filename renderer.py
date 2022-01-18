@@ -47,6 +47,38 @@ def generate_letters_image(guessed_letters, word):
 
     img.save("letters_used.png")
 
+def replace_letter(word, pos):
+    letters = list(word)
+    letters[pos] = '#'
+    return "".join(letters)
+
+def common_elements(list1, list2):
+    return [element for element in list1 if element in list2]
+
+def generate_guess_result(guess, word):
+    result = [0] * len(word)
+    
+    for i in range(0, len(word)):
+        if guess[i] == word[i]:
+            result[i] = 2
+            word = replace_letter(word, i)
+            guess = replace_letter(guess, i)
+
+    for i in range(0, len(word)):
+        letter = guess[i]
+
+        if letter != '#':
+            if letter in word:
+                result[i] = 1
+                answer_loc = word.find(letter)
+                word = replace_letter(word, answer_loc)
+                guess = replace_letter(guess, i)
+            else:
+                result[i] = 0
+
+    return result
+
+
 def generate_guess_image(guess, word):
     font_search = font_manager.FontProperties(family='sans-serif', weight='bold')
     font_file = font_manager.findfont(font_search)
@@ -59,17 +91,17 @@ def generate_guess_image(guess, word):
 
     total_size = 0
 
-    for i in range(0, len(guess)):
+    result = generate_guess_result(guess, word)
+
+    for i in range(0, len(result)):
         letter = guess[i]
         lwidth, lheight = font.getsize(letter)
-
-        if letter == word[i]:
+        if result[i] == 0:
+            fill = INVALID
+        if result[i] == 1:
+            fill = IN_WORD  
+        if result[i] == 2:
             fill = VALID
-        else:
-            if letter in word:
-                fill = IN_WORD
-            else:
-                fill = INVALID
 
         draw.text((total_size, 0), letter, fill=fill, font=font)
 

@@ -33,14 +33,22 @@ def set_last_played():
     with open(last_played_path, 'w') as file:
         file.write(today)
 
+def choose_random_word(word_list):
+    word = random.choice(word_list)
+
+    while not d.check(word):
+        word = random.choice(word_list)
+
+    return word
+
 def generate_target_word(word_length):
     try:
         possible_words = word_lists.word_list_generator.get_list(int(word_length), 1000)
-        return random.choice(possible_words)
+        return choose_random_word(possible_words)
     except IndexError as e:
         possible_words = word_lists.word_list_generator.get_list(word_length, e.args[0])
         if len(possible_words) > 0:
-            return random.choice(possible_words)
+            return choose_random_word(possible_words)
         else:
             raise ValueError('Failed to get a word of that length')
 
@@ -67,7 +75,7 @@ async def on_message(message):
             if args[1].isdigit(): 
                 length = int(args[1])
 
-                if length > 3 and length <= 10:
+                if length >= 2 and length <= 10:
                     if get_last_played().date() != datetime.today().date():
                         await play_wordle(message, length)
                         set_last_played()
